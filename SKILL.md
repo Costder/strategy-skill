@@ -648,14 +648,17 @@ Public command names:
 
 Progress should be real or coarse. If a subagent cannot report real progress, show elapsed time instead of fake percentages.
 
-## Storage Shape
+## Memory Architecture
 
-Default local state:
+Strategy uses **Pattern B** memory: the agent's context window holds active working state; `{strategy_store}` holds all persistent records. Do not graduate to Pattern C (tiered with learned control) unless empirical data shows it is needed for your workload.
+
+### Store Layout
 
 ```text
-~/.hermes/strategy/
+{strategy_store}/
   goals.json
   operator_profile.json
+  vehicle_discovery_records.json
   vehicle_selection_records.json
   assumptions.json
   exit_conditions.json
@@ -666,8 +669,29 @@ Default local state:
   cost_tracker.json
   recovery_log.json
   learning_log.json
+  archive/
+    trajectories.json
   work/
 ```
+
+### Write-Path Rules
+
+Every record written to `{strategy_store}` must include these base fields:
+
+```json
+{
+  "source_goal_id": "string",
+  "created_at": "ISO date",
+  "last_updated": "ISO date",
+  "version": 1
+}
+```
+
+Additional write-path rules — follow all of them:
+- **Versioning:** Before writing an assumption update, check for an existing record with the same `assumption_id`. Increment `version`; do not create a duplicate.
+- **Staleness:** When loading records, flag any record with `last_updated` > 14 days and `source: manual`. Do not silently trust stale data.
+- **Deduplication:** Before writing a Learning Log entry, check for an existing entry matching `(source_goal_id + first 60 chars of distilled principle text)`. If a near-duplicate exists, update it rather than append.
+- **Canonicalization:** Do not append raw interaction output verbatim. Summarize and canonicalize before storing (see Learning Log section).
 
 Existing deployments may use another backend. Keep adapters backward compatible.
 
