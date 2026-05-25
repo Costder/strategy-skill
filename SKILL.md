@@ -466,6 +466,14 @@ Rules:
 
 Every goal needs predefined kill and pivot triggers. Dead strategies should not run forever.
 
+### Pre-Mortem
+
+Before finalizing exit conditions, ask the operator:
+
+> "Imagine it's [goal deadline] and the goal failed. What is the single most likely cause?"
+
+Use that answer to write or refine the **primary kill trigger**. This surfaces the risk the operator is already thinking about, rather than defaulting to a generic time threshold.
+
 ```json
 {
   "exit_conditions": {
@@ -493,7 +501,7 @@ Every goal needs predefined kill and pivot triggers. Dead strategies should not 
 ```
 
 Defaults if the operator does not specify:
-- Kill trigger: core metric has not moved after 90 days of active execution.
+- Kill trigger: core metric [name] has not changed by more than 10% from its value at goal start, measured over any 30-day window, for 3 consecutive windows. The operator sets the threshold percentage during initialization; 10% is the default if unspecified.
 - Pivot trigger: core metric is under 30% of target after 50% of timeline elapsed.
 - Budget kill: total cost exceeds max budget.
 - Path exhaustion: if P1 and P2 both fail, escalate before generating P3.
