@@ -933,6 +933,26 @@ The v2 implementation is complete when:
 - [ ] Learning Log is consulted at every new Layer 0 run
 - [ ] Existing active goals remain backward compatible
 
+**v3 additions:**
+- [ ] Runtime Adapter section present; no `~/.hermes/` or platform-specific paths in skill body
+- [ ] Write-path rules documented: version field, dedup check, staleness flag, canonicalization requirement
+- [ ] Session start protocol replaces morning/evening rhythm
+- [ ] Event-driven communication table replaces clock-based cadence
+- [ ] Four mode types defined with explicit behavioral contracts
+- [ ] Layer 0 Complexity Gate with fast path (< 4) and full path (≥ 4) documented
+- [ ] Layer 0 split into Phase 0-A (Discovery) and Phase 0-B (Stress-Test) with gate between them
+- [ ] PCE scoring format (PLANNER / COMPOSER / EVALUATOR) replaces deviation-percentage Signal Intake table
+- [ ] PCE thresholds defined: ≥ 0.3 (healthy), 0.1–0.3 (flag), < 0.1 (pause + notify)
+- [ ] `at_risk` is a valid assumption status
+- [ ] Learning Log uses two-step distillation: trajectory to archive, principle to learning_log
+- [ ] Learning Log retrieval at Layer 0 queries by `vehicle_type` and `operator_context`
+- [ ] RICE formula present with rubrics (1 / 3 / 5 anchors per dimension)
+- [ ] Cost multiplier (1.0 / 1.5 / 2.0) integrated into RICE, Load Balancer section removed
+- [ ] Pre-mortem step added to exit condition initialization
+- [ ] Kill trigger default uses specific percentage (10%), window (30 days), and consecutive count (3)
+- [ ] `cost_per_outcome` and `plan_consistency` added as required metric types
+- [ ] `plan_consistency` < 40% triggers oscillation warning
+
 ## Success Criteria
 
 Strategy is working when:
