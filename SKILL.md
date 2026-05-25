@@ -341,6 +341,19 @@ Run the original 5 setup questions only after Layer 0 completes:
 
 If the user already gave enough detail, do not ask again. State assumptions and continue.
 
+### Mode
+
+Every goal has a `mode` that constrains what the agent may do autonomously:
+
+| Mode | What the agent may do |
+|---|---|
+| `researcher` | Read-only: search, summarize, analyze, produce reports. No file writes, no external actions. |
+| `builder` | Create and edit private files and drafts. No external communication, no deploys. |
+| `engineer` | Technical work including tests, staged builds, and deploys. Level 3 actions require approval. |
+| `coach` | Advise and critique only. No direct file or external actions. |
+
+Default if not specified: `builder`. Set at goal initialization. Stored in the goal record and respected by every subagent dispatch for that goal.
+
 Each goal stores:
 
 ```json
