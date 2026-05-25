@@ -449,7 +449,7 @@ Every path and milestone is built on assumptions. Make those assumptions visible
   "type": "conversion | cac | timeline | demand | pricing | skill | other",
   "assumed_value": "string",
   "actual_value": null,
-  "status": "unvalidated | confirmed | broken | updated",
+  "status": "unvalidated | confirmed | at_risk | broken | updated",
   "last_checked": "ISO date string",
   "impact_if_broken": "low | medium | high | critical"
 }
@@ -620,25 +620,51 @@ Final response must include:
 
 Rule: if a user would reasonably feel surprised it happened, ask first.
 
-## Signal Intake Layer
+## Signal Intake Layer — PCE Scoring
 
 Run after metrics update in every loop cycle.
 
-Default deviation thresholds:
+Research basis: PCE framework (arXiv 2602.04326) treats assumptions as first-class decision variables and scores them before metric data arrives, solving the problem that assumption breaks cause metric failures — not the reverse.
 
-| Metric Type | Review Trigger |
+For each active assumption, run three steps:
+
+```text
+PLANNER:   What paths or milestones does this assumption enable?
+           What happens to the plan if this assumption is false?
+
+COMPOSER:  Given current evidence (completed tasks, metrics, operator updates),
+           what is the likelihood this assumption still holds?
+           Evidence: [list what was checked]
+           likelihood: 0.0 (certainly false) → 1.0 (certainly true)
+
+EVALUATOR: score = likelihood(0–1) × goal_directed_gain(0–1)
+                   ÷ execution_cost_if_false(1–3)
+
+           goal_directed_gain: how much does this assumption being true
+             advance the core metric?
+             0.0 = no effect on core metric
+             1.0 = determines whether the goal succeeds
+
+           execution_cost_if_false:
+             1 = low    — can break without stopping work; easy to reroute
+             2 = medium — breaking this assumption requires path reroute
+             3 = critical — breaking this assumption may require killing the goal
+```
+
+Thresholds:
+
+| Score | Action |
 |---|---|
-| `conversion_rate` | 50% deviation |
-| `cac` | 100% deviation |
-| `timeline` | 25% slip |
-| `revenue` | 30% below projection |
+| ≥ 0.3 | Assumption healthy — continue |
+| 0.1–0.3 | Flag for Strategic Review on next loop cycle |
+| < 0.1 | Pause path immediately — notify operator with full assumption summary and request decision |
 
-Rules:
-- For each active goal, compare actual metrics to assumptions.
-- If actual deviates beyond threshold, flag assumption as `broken`.
-- Calculate impact score.
-- If impact is `medium` or higher, queue Strategic Review.
-- If impact is `critical`, pause the path and notify the operator immediately.
+Update assumption `status` field:
+- Score ≥ 0.3 → `confirmed` (if previously unvalidated) or `active`
+- Score 0.1–0.3 → `at_risk`
+- Score < 0.1 → `broken`
+
+The PCE scoring pass replaces the deviation-percentage threshold table. It produces a score even when metrics are stale, because it reasons from available evidence rather than requiring a specific metric reading.
 
 ## Strategic Review Protocol
 
