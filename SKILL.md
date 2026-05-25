@@ -778,6 +778,24 @@ Metric sources:
 
 If metrics are stale, Strategy says so. If most metrics are stale, it avoids major reroutes and asks for updated data.
 
+### Required Metrics: CLEAR Dimensions
+
+Research basis: CLEAR (arXiv 2511.14136) found that agent reliability drops from ~60% to ~25% without explicit tracking, and that ignoring cost produces 4.4–10.8x waste. Every goal must track both.
+
+In addition to the operator-defined core metric, every goal tracks:
+
+**`cost_per_outcome`**
+- Formula: `total_spend_to_date ÷ core_metric_current_value`
+- Track every loop cycle
+- If it increases for 3 consecutive cycles while the core metric is flat → surface a Strategic Review prompt: "Cost per unit of progress is rising while the core metric is not moving. Review the active path."
+
+**`plan_consistency`**
+- Definition: percentage of loop cycles in the last 7 where the active path and top-priority task did not change
+- Track every loop cycle
+- If `plan_consistency` < 40% over any 3-cycle window → surface: "Plan is changing frequently — possible oscillation. Review assumptions before next dispatch."
+
+These are tracked automatically by the agent. They do not replace the operator-defined core metric.
+
 ## Session Start Protocol
 
 Run this once at the start of every session. Works for both continuous agents and stateless LLMs.
