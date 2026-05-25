@@ -10,13 +10,24 @@ metadata:
     related_skills: [writing-plans, subagent-driven-development, opentrust-agent-payments, opentrust-registry-network]
 ---
 
-# Strategy Skill v2 — Path to Victory
+# Strategy Skill — Path to Victory
 
 ## Overview
 
-`/strategy` is the public Path to Victory skill: a long-running strategy engine for Hermes.
+`/strategy` is a long-term thinking skill for agents.
 
-It does not just turn a goal into a todo list. It first asks whether the goal makes sense, whether the chosen path can work, and whether the operator has enough time, money, skill, network, and risk tolerance to execute it.
+Use it when a goal is too big for a simple list.
+
+Most agents can make tasks. That is easy. But a task list can still be wrong.
+
+`/strategy` helps the agent slow down and ask better questions first:
+
+- What does the user really want?
+- Is this the best path?
+- Do the numbers work?
+- Does this fit the user’s time, money, skill, and risk?
+- What should the agent do first?
+- When should the agent stop or change the plan?
 
 Then it builds a living route:
 
@@ -36,9 +47,55 @@ True Outcome
 
 Core promise: never build a confident plan for a goal that fails its own math.
 
+## Why Users Benefit
+
+Users get:
+
+- a clearer goal
+- a better path
+- smaller next steps
+- less wasted work
+- safer agent action
+- a way to know when the plan is failing
+- a way to pivot before wasting months
+- less busywork for the user
+
+The skill helps the agent do more than ask, “What should I do?”
+
+It makes the agent ask, “Should we do this this way?”
+
+## `/strategy` vs `/goal`
+
+`/goal` is for tracking a goal.
+
+`/strategy` is for thinking through the best path to reach it.
+
+| Command | Best for | What it does |
+|---|---|---|
+| `/goal` | A target you want to track | Saves the goal and checks progress |
+| `/strategy` | A hard goal that needs a plan | Tests the goal, picks a path, makes tasks, checks reality, and reroutes |
+
+Use `/goal` when the user already knows what they want and just needs tracking.
+
+Use `/strategy` when the goal is big, risky, unclear, long-term, or expensive.
+
+Example:
+
+```text
+/goal Lose 20 pounds
+```
+
+This tracks the target.
+
+```text
+/strategy Lose 20 pounds while working full time and staying under $100/month
+```
+
+This builds a plan that fits real life.
+
 ## Installation / Quick Start
 
-Install this skill as `strategy` and invoke it when the user asks for a long-running route rather than a one-off answer.
+Install this skill as `strategy` and use it when the user needs a long-term plan, not a one-off answer.
 
 Example prompts:
 

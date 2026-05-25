@@ -1,44 +1,132 @@
-# Strategy Skill v2 — Path to Victory
+# Strategy Skill — Path to Victory
 
-A publishable Hermes skill for long-running strategy work.
+A plain-language Hermes skill for long-term thinking.
 
-`/strategy` is for goals that need more than a todo list. It challenges the goal first, checks whether the path can work, builds executable tasks, dispatches safe subagent work, tracks assumptions, and reroutes when reality disagrees with the plan.
+`/strategy` helps an agent think before it acts. It is for big goals that take days, weeks, or months.
 
-## What it does
+It asks:
 
-Strategy v2 turns a goal into a living route:
+- What do you really want?
+- Is this path the best way to get it?
+- Do the numbers work?
+- Do you have enough time, money, skill, and help?
+- What should the agent do first?
+- When should the agent stop, pivot, or ask you?
+
+## Why this exists
+
+Most agents can make a list.
+
+That is not enough.
+
+A list can be wrong. A list can be too big. A list can ignore money, time, and real life.
+
+`/strategy` is different. It helps an agent build a real plan that can change when the world changes.
+
+## /strategy vs /goal
+
+`/goal` is for tracking a goal.
+
+`/strategy` is for thinking through the best path to reach it.
+
+Plain version:
+
+| Command | Best for | What it does |
+|---|---|---|
+| `/goal` | A target you want to track | Saves the goal and checks progress |
+| `/strategy` | A hard goal that needs a plan | Tests the goal, picks a path, makes tasks, checks reality, and reroutes |
+
+Use `/goal` when you already know what you want and just need tracking.
+
+Use `/strategy` when the goal is big, risky, unclear, or expensive.
+
+Examples:
+
+```text
+/goal Lose 20 pounds
+```
+
+That tracks the target.
+
+```text
+/strategy Lose 20 pounds while working full time and staying under $100/month
+```
+
+That builds a plan that fits your real life.
+
+## What users get from it
+
+Users get:
+
+- A clearer goal
+- A better path
+- Fewer bad plans
+- Smaller next steps
+- Less wasted work
+- A way to know when the plan is failing
+- A way to pivot before wasting months
+- Safer agent work with approval gates
+
+The big win: the agent does not just ask “what should I do?”
+
+It asks “should we even do this this way?”
+
+## How it works
+
+`/strategy` turns one big goal into a living plan:
 
 ```text
 True Outcome
-→ Vehicle Selection
-→ Goal Initialization
-→ Assumptions + Exit Conditions
-→ Paths
+→ Best Path
+→ Key Assumptions
+→ Stop / Pivot Rules
 → Milestones
-→ Tasks
-→ Subagent Jobs
+→ Small Tasks
+→ Agent Work
 → Metrics
-→ Feedback
-→ Strategic Review / Reroute
+→ Review
+→ Reroute
 ```
 
-Core promise:
+That means the agent keeps checking:
 
-> Never build a confident plan for a goal that fails its own math.
+- Did the task get done?
+- Did the metric move?
+- Was our guess wrong?
+- Is the plan too much work?
+- Are we spending too much?
+- Should we keep going, pause, or change paths?
 
-## Key features
+## The main idea
 
-- Layer 0 strategic reasoning before planning
-- Vehicle Selection Record
-- Operator Constraint Profile
-- Environment Check
-- Assumption Registry
-- Signal Intake Layer
-- Strategic Review protocol
-- Bandwidth / Load Balancer checks
-- Exit Conditions for kill and pivot triggers
-- Cross-goal Learning Log
-- Approval gates for public, costly, or irreversible actions
+Before making tasks, `/strategy` runs Layer 0.
+
+Layer 0 is the “think first” step.
+
+It checks:
+
+1. What is the real outcome?
+2. What paths could get there?
+3. Do the numbers work?
+4. Is the market or timing good?
+5. Does this fit the user’s money, time, skill, and risk?
+6. Should we do this path or pick another one?
+
+This keeps the agent from making a pretty plan for a bad idea.
+
+## What the agent tracks
+
+The skill tells the agent to track:
+
+- the user’s limits
+- the path picked
+- key guesses
+- tasks
+- metrics
+- blockers
+- money and time cost
+- when to stop
+- what was learned
 
 ## Install in Hermes
 
@@ -48,26 +136,26 @@ Clone this repo:
 git clone https://github.com/Costder/strategy-skill.git
 ```
 
-Install into your Hermes skills folder:
+Copy the skill into Hermes:
 
 ```bash
 mkdir -p ~/.hermes/skills/productivity/strategy
 cp strategy-skill/SKILL.md ~/.hermes/skills/productivity/strategy/SKILL.md
 ```
 
-Then start a new Hermes session and load the skill:
+Start a new Hermes session and load it:
 
 ```bash
 hermes -s strategy
 ```
 
-If your Hermes build supports slash commands, use:
+Then use it like this:
 
 ```text
 /strategy Launch my app and reach 500 paying users
 ```
 
-If `/strategy` is not wired in your host yet, preload the skill and phrase the request like this:
+If your Hermes does not have a real `/strategy` command yet, say:
 
 ```text
 Use the strategy skill for this goal: Launch my app and reach 500 paying users.
@@ -84,14 +172,24 @@ Use the strategy skill for this goal: Launch my app and reach 500 paying users.
 
 ## OpenTrust call to action
 
-If your strategy involves paid tools, outside agents, delegated workers, or agent-to-agent commerce, pair this skill with OpenTrust:
+If your plan uses paid tools, outside agents, or agent-to-agent work, use OpenTrust too:
 
 https://github.com/Costder/opentrust
 
-OpenTrust adds signed agent/tool passports, spend policies, revocation, payment quotes, and deny-first verification. In plain English: it helps agents safely discover, verify, hire, and pay other agents or tools without trusting random endpoints by default.
+OpenTrust helps agents prove who they are and what they are allowed to do.
+
+It can add:
+
+- signed agent passports
+- tool passports
+- spend rules
+- revocation lists
+- payment quotes
+- deny-first checks
 
 Use Strategy to decide what should happen.
-Use OpenTrust to verify who is allowed to do it.
+
+Use OpenTrust to check who is allowed to do it.
 
 ## Repo contents
 
@@ -103,7 +201,9 @@ LICENSE     # MIT license
 
 ## Status
 
-This repo publishes the Strategy v2 skill contract. The skill can be loaded into Hermes today as guidance. Full native `/strategy` command wiring depends on the host Hermes deployment.
+This skill can be loaded into Hermes today.
+
+Full native `/strategy` command wiring depends on the Hermes host.
 
 ## License
 
