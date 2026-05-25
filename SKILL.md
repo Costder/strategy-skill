@@ -614,17 +614,32 @@ Metric sources:
 
 If metrics are stale, Strategy says so. If most metrics are stale, it avoids major reroutes and asks for updated data.
 
-## Communication Rhythm
+## Session Start Protocol
 
-Keep communication low-noise.
+Run this once at the start of every session. Works for both continuous agents and stateless LLMs.
 
-| Cycle | Purpose | Message? |
-|---|---|---|
-| Morning | recover jobs, update metrics, dispatch work, ask one important question | Yes, short |
-| Midday | continue work if budget and gates allow | No, unless blocked |
-| Evening | summarize completed work, cost, blockers, next steps | Yes, short |
-| Night | quiet private work only | No, unless urgent |
-| Weekly | review evidence, reroute, prune goals, plan next week | Yes |
+```text
+1. Load active goals from {strategy_store}
+2. For each active goal, produce a ≤30-word status line:
+   "[goal title] — [status] — top metric: [value vs target] — top blocker: [or none]"
+3. If any metric source has not been updated in >7 days, surface at most
+   one stale-metric question
+4. Load full records only for goals with dispatched tasks or pending approvals
+5. Proceed to loop — no message unless something needs operator input
+```
+
+## Communication Rules
+
+Speak only when something changes state. Do not send messages on a clock.
+
+| Trigger | Output |
+|---|---|
+| Blocker encountered | Immediate, ≤3 sentences: what is blocked, what is needed to unblock |
+| Assumption PCE score drops below 0.3 | Immediate: which assumption, current score, recommended action |
+| Assumption PCE score drops below 0.1 | Immediate: path paused, full assumption summary, operator decision required |
+| Milestone completed | Summary: what completed, total cost to date, next ready tasks |
+| Session start with no changes since last session | Silent — no message |
+| Weekly (if agent runs continuously) | Review evidence, reroute, prune goals, plan next week |
 
 ## Observability Commands
 
