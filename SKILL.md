@@ -66,32 +66,50 @@ It makes the agent ask, “Should we do this this way?”
 
 ## `/strategy` vs `/goal`
 
-`/goal` is for tracking a goal.
+`/goal` is a Ralph loop.
 
-`/strategy` is for thinking through the best path to reach it.
+That means the user gives the agent one clear target, and the agent keeps working across turns until a judge says the target is done, blocked, paused, or out of budget.
+
+`/goal` is powerful when the job is already clear.
+
+`/strategy` is for the step before that.
+
+It decides which target is worth giving to `/goal`, why that target matters, how to test it, and when to change course.
 
 | Command | Best for | What it does |
 |---|---|---|
-| `/goal` | A target you want to track | Saves the goal and checks progress |
-| `/strategy` | A hard goal that needs a plan | Tests the goal, picks a path, makes tasks, checks reality, and reroutes |
+| `/goal` | One clear job with a clear stop rule | Keeps the agent working across turns until done or blocked |
+| `/strategy` | A big or risky outcome where the right path is not obvious | Picks the path, writes assumptions, sets stop rules, and creates clear work packets |
 
-Use `/goal` when the user already knows what they want and just needs tracking.
+Simple rule:
+
+```text
+/goal = keep going until this job is done
+/strategy = decide which job is worth doing, why, and when to change course
+```
+
+Another way:
+
+```text
+/goal is the engine.
+/strategy is the steering wheel, map, dashboard, and brake.
+```
+
+Use `/goal` when the user knows the exact job and how to verify it.
 
 Use `/strategy` when the goal is big, risky, unclear, long-term, or expensive.
 
-Example:
+A good split:
 
 ```text
-/goal Lose 20 pounds
+/strategy Help me grow my app to 1,000 paying users.
 ```
 
-This tracks the target.
+Then Strategy may create a `/goal` packet like:
 
 ```text
-/strategy Lose 20 pounds while working full time and staying under $100/month
+/goal Build and test the first landing page experiment. Success means the page is live, analytics work, signup works, and the test plan is written.
 ```
-
-This builds a plan that fits real life.
 
 ## Installation / Quick Start
 
@@ -131,7 +149,9 @@ Do not use it for:
 
 `/strategy` is the public Path to Victory command.
 
-Do **not** use `/goal` for this skill. `/goal` is a separate command/surface and must not be overloaded.
+Do not overload `/goal` to mean Strategy. `/goal` is its own Ralph-loop command.
+
+But Strategy may produce clean `/goal` packets when the next step is clear enough for an execution loop.
 
 Private deployments may have aliases, but public docs and general users should see `/strategy`.
 

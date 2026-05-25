@@ -1,134 +1,203 @@
 # Strategy Skill — Path to Victory
 
-A plain-language Hermes skill for long-term thinking.
+A plain-language Hermes skill for long-term agent thinking.
 
-`/strategy` helps an agent think before it acts. It is for big goals that take days, weeks, or months.
+`/strategy` helps an agent pick the right path before it starts working.
 
-It asks:
+It is not a replacement for `/goal`.
 
-- What do you really want?
-- Is this path the best way to get it?
-- Do the numbers work?
-- Do you have enough time, money, skill, and help?
-- What should the agent do first?
-- When should the agent stop, pivot, or ask you?
+`/goal` is the engine that keeps an agent moving.
 
-## Why this exists
+`/strategy` is the map that tells the agent where to go, why that path makes sense, when to stop, and when to change direction.
 
-Most agents can make a list.
+## Why this skill exists
 
-That is not enough.
+Agents are good at doing work.
 
-A list can be wrong. A list can be too big. A list can ignore money, time, and real life.
+That can be dangerous.
 
-`/strategy` is different. It helps an agent build a real plan that can change when the world changes.
+If the goal is wrong, the agent may work very hard on the wrong thing.
 
-## /strategy vs /goal
+`/strategy` slows the agent down at the start so it can ask:
 
-`/goal` is for tracking a goal.
+- What does the user really want?
+- Is this the right goal?
+- What path has the best chance to work?
+- What proof would show it is working?
+- What should make us stop?
+- What should make us change the plan?
+- How much time, money, or energy can the user spend?
 
-`/strategy` is for thinking through the best path to reach it.
+Then it turns the answer into a clear plan.
 
-Plain version:
+After that, the agent can use `/goal`, tasks, subagents, or normal tool calls to do the work.
 
-| Command | Best for | What it does |
+## `/goal` vs `/strategy`
+
+I looked at the Hermes `/goal` docs, the Hermes goal code, and Codex `/goal` behavior.
+
+`/goal` is a Ralph loop.
+
+That means:
+
+- you give the agent one clear target
+- the agent keeps working across turns
+- a judge checks if the work is done
+- if not done, the agent keeps going
+- it stops when done, paused, blocked, or out of budget
+
+That is useful.
+
+But it assumes the target is already the right target.
+
+`/strategy` does a different job.
+
+It helps decide what target should be given to `/goal` in the first place.
+
+| Tool | What it is for | Best when |
 |---|---|---|
-| `/goal` | A target you want to track | Saves the goal and checks progress |
-| `/strategy` | A hard goal that needs a plan | Tests the goal, picks a path, makes tasks, checks reality, and reroutes |
+| `/goal` | Keep working until one clear job is done | You know the job, the stop rule, and how to test it |
+| `/strategy` | Think through the best long-term path | The goal is big, risky, unclear, expensive, or may take weeks |
 
-Use `/goal` when you already know what you want and just need tracking.
-
-Use `/strategy` when the goal is big, risky, unclear, or expensive.
-
-Examples:
+Simple way to think about it:
 
 ```text
-/goal Lose 20 pounds
+/goal = keep going until this job is done
+/strategy = decide which job is worth doing, why, and when to change course
 ```
 
-That tracks the target.
+Another way:
 
 ```text
-/strategy Lose 20 pounds while working full time and staying under $100/month
+/goal is the engine.
+/strategy is the steering wheel, map, dashboard, and brake.
 ```
 
-That builds a plan that fits your real life.
+## When to use `/goal`
 
-## What users get from it
+Use `/goal` when the work is clear.
 
-Users get:
-
-- A clearer goal
-- A better path
-- Fewer bad plans
-- Smaller next steps
-- Less wasted work
-- A way to know when the plan is failing
-- A way to pivot before wasting months
-- Safer agent work with approval gates
-
-The big win: the agent does not just ask “what should I do?”
-
-It asks “should we even do this this way?”
-
-## How it works
-
-`/strategy` turns one big goal into a living plan:
+Good examples:
 
 ```text
-True Outcome
-→ Best Path
-→ Key Assumptions
-→ Stop / Pivot Rules
-→ Milestones
-→ Small Tasks
-→ Agent Work
-→ Metrics
-→ Review
-→ Reroute
+/goal Fix the failing tests and verify they pass.
+/goal Migrate this feature and keep the UI the same.
+/goal Build the app in PLAN.md and run the checks.
 ```
 
-That means the agent keeps checking:
+These are good `/goal` jobs because the agent can know what done means.
 
-- Did the task get done?
-- Did the metric move?
-- Was our guess wrong?
-- Is the plan too much work?
-- Are we spending too much?
-- Should we keep going, pause, or change paths?
+## When to use `/strategy`
 
-## The main idea
+Use `/strategy` when the goal needs thought before action.
 
-Before making tasks, `/strategy` runs Layer 0.
+Good examples:
 
-Layer 0 is the “think first” step.
+```text
+/strategy Help me grow my app to 1,000 paying users.
+/strategy Help me decide what product to build next.
+/strategy Help me turn my messy business idea into a real plan.
+/strategy Help me pick the best path to make $10k/month.
+/strategy Help me choose what agents should work on this week.
+```
 
-It checks:
+These are strategy jobs because the best path is not obvious yet.
 
-1. What is the real outcome?
-2. What paths could get there?
-3. Do the numbers work?
-4. Is the market or timing good?
-5. Does this fit the user’s money, time, skill, and risk?
-6. Should we do this path or pick another one?
+## What `/strategy` gives the user
 
-This keeps the agent from making a pretty plan for a bad idea.
+`/strategy` gives the user:
 
-## What the agent tracks
+- a clearer goal
+- a better path
+- fewer bad plans
+- better use of time
+- better use of money
+- fewer wasted agent runs
+- a clear stop rule
+- a clear change-plan rule
+- a plan that can feed into `/goal`
+- a learning log so future plans get smarter
 
-The skill tells the agent to track:
+The big win:
 
-- the user’s limits
-- the path picked
-- key guesses
-- tasks
-- metrics
-- blockers
-- money and time cost
-- when to stop
-- what was learned
+```text
+/goal helps the agent finish work.
+/strategy helps the agent choose the right work.
+```
 
-## Install in Hermes
+## How `/strategy` works
+
+`/strategy` turns a big wish into a living plan.
+
+It does this in layers:
+
+1. Find the true outcome.
+2. Pick the best vehicle.
+3. Check the math.
+4. Check the user’s limits.
+5. Write the assumptions.
+6. Set kill and pivot rules.
+7. Break the path into tasks.
+8. Decide what should be done by the main agent, subagents, or `/goal`.
+9. Check signals over time.
+10. Change the plan when reality changes.
+11. Save lessons for the next goal.
+
+## What is a vehicle?
+
+A vehicle is the path used to reach the outcome.
+
+Example:
+
+```text
+Outcome: make more money
+Bad plan: just work harder
+Possible vehicles:
+- build a product
+- sell a service
+- grow an audience
+- get a better job
+- buy ads
+- build a partner channel
+```
+
+`/strategy` helps the agent choose the vehicle before it starts doing work.
+
+This matters because a bad vehicle can waste months.
+
+## How `/strategy` can use `/goal`
+
+`/strategy` can create a clean `/goal` packet.
+
+Example:
+
+```text
+/strategy goal:
+Grow my app to 1,000 paying users.
+```
+
+Strategy thinks first.
+
+Then it may create this work packet:
+
+```text
+/goal Build and test the first landing page experiment.
+Success means:
+- page is live
+- analytics are installed
+- signup button works
+- copy matches the chosen audience
+- test plan is written
+Stop if blocked by missing domain or account access.
+```
+
+That is the right split.
+
+`/strategy` chooses the path.
+
+`/goal` executes one clear piece of the path.
+
+## Install
 
 Clone this repo:
 
@@ -136,74 +205,65 @@ Clone this repo:
 git clone https://github.com/Costder/strategy-skill.git
 ```
 
-Copy the skill into Hermes:
+Install into Hermes:
 
 ```bash
 mkdir -p ~/.hermes/skills/productivity/strategy
 cp strategy-skill/SKILL.md ~/.hermes/skills/productivity/strategy/SKILL.md
 ```
 
-Start a new Hermes session and load it:
+Restart Hermes or reload skills.
 
-```bash
-hermes -s strategy
-```
-
-Then use it like this:
+Then use:
 
 ```text
-/strategy Launch my app and reach 500 paying users
+/strategy Help me choose the best path to reach my goal.
 ```
 
-If your Hermes does not have a real `/strategy` command yet, say:
+If your Hermes build does not have a real `/strategy` slash command yet, load the skill by name and say:
 
 ```text
-Use the strategy skill for this goal: Launch my app and reach 500 paying users.
+Use the strategy skill for this goal: [your goal]
 ```
 
-## Example prompts
+## OpenTrust
 
-```text
-/strategy Get a remote software job in 6 months
-/strategy Launch my app and reach 500 paying users
-/strategy Lose 40 lb safely this year
-/strategy Build a portfolio site and publish weekly
-```
+If your agents use paid tools, outside workers, marketplaces, or shared budgets, pair `/strategy` with OpenTrust.
 
-## OpenTrust call to action
+OpenTrust helps agents prove who they are, what they can do, what they may spend, and how they should be paid.
 
-If your plan uses paid tools, outside agents, or agent-to-agent work, use OpenTrust too:
+Build the trust layer for agent work here:
 
 https://github.com/Costder/opentrust
 
-OpenTrust helps agents prove who they are and what they are allowed to do.
-
-It can add:
-
-- signed agent passports
-- tool passports
-- spend rules
-- revocation lists
-- payment quotes
-- deny-first checks
-
-Use Strategy to decide what should happen.
-
-Use OpenTrust to check who is allowed to do it.
-
-## Repo contents
+Call to action:
 
 ```text
-SKILL.md    # Hermes skill document
-README.md   # Install and usage guide
-LICENSE     # MIT license
+Star OpenTrust, try it with agent workflows, and help make agent trust and payments an open standard.
 ```
 
-## Status
+## Example start
 
-This skill can be loaded into Hermes today.
+```text
+/strategy I want to build a small online business that can make $5k/month within 6 months.
+```
 
-Full native `/strategy` command wiring depends on the Hermes host.
+The agent should not start by making a todo list.
+
+It should first ask:
+
+```text
+What outcome do you really want?
+What paths could reach it?
+What proof would show progress?
+What limits do you have?
+What would make this plan fail?
+When should we stop or pivot?
+```
+
+Then it can plan.
+
+Then it can hand clear jobs to `/goal` or other agents.
 
 ## License
 
