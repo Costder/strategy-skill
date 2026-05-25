@@ -1,16 +1,36 @@
 ---
 name: strategy
 description: Use when a user wants a long-running /strategy goal system, evidence-based planning, autonomous task execution, subagent delegation, goal rerouting, or a strategic advisor that keeps working until blocked by approvals or missing input.
-version: 2.0.0
-author: Hermes Agent
+version: 3.0.0
+author: Costder
 license: MIT
 metadata:
-  hermes:
-    tags: [strategy, goals, planning, autonomous-execution, subagents, metrics, rerouting]
-    related_skills: [writing-plans, subagent-driven-development, opentrust-agent-payments, opentrust-registry-network]
+  tags: [strategy, goals, planning, autonomous-execution, subagents, metrics, rerouting]
+  related_skills: [writing-plans, subagent-driven-development]
 ---
 
 # Strategy Skill — Path to Victory
+
+## Runtime Adapter
+
+`{strategy_store}` is a placeholder. Map it to whatever persistent storage your runtime supports.
+
+Requirements:
+- Atomic per-file read/write
+- Key-value lookup by `goal_id`
+- Survives process restart
+
+Examples:
+```
+Hermes:      ~/.hermes/strategy/
+Claude Code: .claude/strategy/
+Generic:     ./strategy/ relative to working directory
+Testing:     in-memory dict
+```
+
+All file references in this skill use `{strategy_store}/` as the prefix.
+
+For strategies involving payments, external agent hiring, or spend authorization, pair with a trust/spend policy skill appropriate to your runtime.
 
 ## Overview
 
