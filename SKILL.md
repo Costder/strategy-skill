@@ -543,33 +543,44 @@ Task states remain:
 
 ## Layer 3 — Scoring, Bandwidth, Dispatch
 
-Keep the v1 priority formula:
+### Priority Formula
+
+Research basis: CLEAR (arXiv 2511.14136) found that agents optimized for task efficacy alone were 4.4–10.8x more expensive than cost-aware alternatives. Cost is integrated directly into scoring rather than handled as a separate check.
 
 ```text
-priority = value + urgency + confidence + synergy - effort - cost - risk
+score = (Reach × Impact × Confidence) ÷ (Effort × Cost_multiplier)
 ```
 
-Before dispatching any task, run Load Balancer check:
+**Dimension rubrics (score 1–5):**
 
-```text
-1. Calculate current weekly hour load across all active goals.
-2. If projected load > operator available_hours_per_week:
-   → Do not dispatch.
-   → Mark task as deferred with reason: bandwidth.
-   → Suggest lower-priority tasks to pause or drop.
-3. If load_score > 80%, show yellow flag.
-4. If load_score > 100%, show red flag and stop dispatching.
-```
+| Dimension | 1 | 3 | 5 |
+|---|---|---|---|
+| **Reach** | Unblocks 0 other tasks | Unblocks 1–2 tasks on current path | Unblocks a milestone or an entire parallel path |
+| **Impact** | <5% movement on core metric | 10–25% movement on core metric | >25% movement or removes a critical blocker |
+| **Confidence** | Assumption unvalidated, high impact if broken | Assumption plausible, medium impact if broken | Assumption confirmed, or impact is low regardless |
+| **Effort** | >8 operator-hours | 2–8 operator-hours | <2 operator-hours |
 
-Load score:
+**Cost multiplier:**
 
-```text
-sum(estimated_hours for all dispatched + ready tasks this week)
-÷ available_hours_per_week
-× 100
-```
+| Weekly spend position | Multiplier |
+|---|---|
+| Task is within weekly budget | 1.0 |
+| Task pushes cumulative spend to >75% of weekly budget | 1.5 |
+| Task would exhaust weekly budget | 2.0 |
 
-Recommended solo-operator limit: 2 active goals at a time.
+**Dispatch thresholds:**
+- Score ≥ 8.0: dispatch candidate
+- Score 2.0–7.9: backlog
+- Score < 2.0: defer or drop
+
+### Dispatch Rules
+
+Before dispatching any task:
+1. Compute RICE score
+2. Confirm score ≥ 8.0
+3. Confirm task autonomy level is within approved range
+4. Dispatch safe tasks
+5. Gate Level 3+ actions on approval
 
 ## Subagent Dispatch
 
