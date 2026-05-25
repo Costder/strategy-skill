@@ -180,7 +180,7 @@ Private deployments may have aliases, but public docs and general users should s
 ```text
 Goal Input
   ↓
-LAYER 0: Strategic Reasoning
+LAYER 0: Complexity Gate → 0-A Discovery (stable gate) → 0-B Stress-Test (realistic gate)
   → Query Learning Log for prior relevant findings
   → Clarify true underlying outcome
   → Identify viable vehicle types
@@ -211,22 +211,40 @@ LOOP
   1. Load goals, paths, tasks, metrics, approvals, budgets, active jobs
   2. Recover stale or interrupted jobs
   3. Update metrics
-  4. Run Signal Intake Layer and check assumptions against actuals
-  5. If assumption broke, trigger Strategic Review protocol
-  6. Check Exit Conditions
-  7. Check operator load score
-  8. Find ready tasks
-  9. Score tasks
-  10. Run Load Balancer check
-  11. Dispatch safe tasks
-  12. Log outputs and update Learning Log when milestones/goals complete
-  13. Ask only for blockers
-  14. Reroute if path is failing
+  4. Run Signal Intake Layer — PCE-score each active assumption
+  5. If PCE score < 0.1, pause path and notify operator
+  6. If PCE score 0.1–0.3, flag for Strategic Review on next cycle
+  7. Check Exit Conditions
+  8. Check operator load score
+  9. Find ready tasks
+  10. Score tasks
+  11. Run Load Balancer check
+  12. Dispatch safe tasks
+  13. Log outputs and update Learning Log when milestones/goals complete
+  14. Ask only for blockers
+  15. Reroute if path is failing
 ```
 
-## Layer 0 — Strategic Reasoning
+## Layer 0 — Goal Complexity Gate
 
-Layer 0 runs once per new goal before the normal 5 setup questions. It should feel like a sharp advisor having a 10-minute conversation, not an interrogation.
+Before running any discovery or planning, compute a Goal Complexity Score:
+
+| Signal | Points |
+|---|---|
+| Budget at risk > $500 or equivalent | +2 |
+| Timeline > 3 months | +2 |
+| Vehicle is unclear or multiple viable options exist | +3 |
+| Goal requires other people or external approvals | +2 |
+| Learning Log has a broken assumption in same vehicle type | +2 |
+
+- Score **< 4 → Fast path**: confirm vehicle in one question, check operator constraints in one question, skip Phase 0-B financial stress-test, proceed to Layer 1
+- Score **≥ 4 → Full path**: run Phase 0-A then Phase 0-B in sequence
+
+## Layer 0-A — Discovery
+
+Run Phase 0-A first. Do not generate paths or score vehicles yet. This phase only.
+
+Research basis: HexMachina (arXiv 2506.04651) found that agents that simultaneously discover the environment and build strategy fail to stabilize. Dedicated discovery before strategy improved outcomes by 15+ percentage points.
 
 Sequence:
 
@@ -235,72 +253,117 @@ Sequence:
    - Example: “launch app” may really mean “financial independence by 35.”
    - Ask: “What does success actually look like in your life?”
 
-2. **Identify viable vehicle types**
-   - Business: SaaS, services, marketplace, high-ticket, physical product.
-   - Employment: job, consulting, freelance.
-   - Investment: equity, real estate, assets.
-   - Hybrid combinations.
-   - Do not assume the stated path is the best path.
-
-3. **Stress-test the math on each viable vehicle**
-   - What revenue/profit numbers are required?
-   - What margins, volume, and price points does that imply?
-   - What is the realistic timeline?
-   - What capital, skills, or connections are prerequisites?
-
-4. **Run Environment Check**
+2. **Survey the environment**
    - Is the space crowded?
    - Who are the main players?
    - Is timing favorable, neutral, or unfavorable?
    - Are there tailwinds, headwinds, dependencies, or timing constraints?
 
-5. **Score each vehicle against the Operator Constraint Profile**
-   - Available capital.
-   - Available hours per week.
-   - Current skill set, honestly measured.
-   - Current network/distribution.
-   - Risk tolerance.
-   - Hard blockers.
+3. **Identify viable vehicle types — list only, no scoring yet**
+   - Business: SaaS, services, marketplace, high-ticket, physical product
+   - Employment: job, consulting, freelance
+   - Investment: equity, real estate, assets
+   - Hybrid combinations
+   - Do not assume the stated path is the best path
 
-6. **Select the best-fit vehicle or flag mismatch**
-   - If achievable, proceed with the chosen vehicle.
-   - If unrealistic, say so clearly before building any path.
-   - Never build a plan for a goal that fails its own math.
+4. **Document operator constraints**
+   - Available capital
+   - Available hours per week
+   - Current skill set, honestly measured
+   - Current network/distribution
+   - Risk tolerance
+   - Hard blockers
 
-### Vehicle Selection Record
-
-Store one Vehicle Selection Record per goal:
+5. **Produce `vehicle_discovery_record`**
 
 ```json
 {
-  "true_outcome": "string",
-  "vehicles_considered": [
-    {
-      "vehicle": "string",
-      "implied_revenue": "string",
-      "implied_customers_or_clients": "string",
-      "implied_timeline": "string",
-      "prerequisite_capital": "string",
-      "prerequisite_skills": ["string"],
-      "operator_fit_score": "high | medium | low | mismatch",
-      "verdict": "recommended | viable | hard | mismatch"
-    }
-  ],
-  "environment_assessment": {
-    "market_crowding": "low | medium | high",
-    "timing": "favorable | neutral | unfavorable",
-    "key_risks": ["string"],
-    "key_tailwinds": ["string"],
-    "overall_environment_score": "green | yellow | red"
+  “goal_id”: “string”,
+  “true_outcome”: “string”,
+  “candidate_vehicles”: [“string”],
+  “environment_assessment”: {
+    “market_crowding”: “low | medium | high”,
+    “timing”: “favorable | neutral | unfavorable”,
+    “key_risks”: [“string”],
+    “key_tailwinds”: [“string”],
+    “overall_environment_score”: “green | yellow | red”
   },
-  "selected_vehicle": "string",
-  "selection_rationale": "string",
-  "goal_is_realistic": true,
-  "flags": ["string"]
+  “operator_constraints_documented”: true,
+  “status”: “stable | incomplete”,
+  “source_goal_id”: “string”,
+  “created_at”: “ISO date”,
+  “last_updated”: “ISO date”,
+  “version”: 1
 }
 ```
 
-If `overall_environment_score` is `red`, do not block automatically, but require operator acknowledgment before moving into Layer 1.
+**Phase 0-A Gate:** `vehicle_discovery_record.status` must be `”stable”` before proceeding to Phase 0-B.
+
+Status is `”stable”` when all four items are complete:
+1. True outcome clarified
+2. Environment surveyed
+3. Candidate vehicles listed
+4. Operator constraints documented
+
+If any item is missing, ask one clarifying question and wait. Do not proceed with incomplete discovery.
+
+If `overall_environment_score` is `red`, require operator acknowledgment before moving to Phase 0-B.
+
+## Layer 0-B — Stress-Test
+
+Run Phase 0-B only after the Phase 0-A gate passes.
+
+Sequence:
+
+1. **Stress-test the math on each candidate vehicle**
+   - What revenue/profit numbers are required?
+   - What margins, volume, and price points does that imply?
+   - What is the realistic timeline?
+   - What capital, skills, or connections are prerequisites?
+
+2. **Score each vehicle against the Operator Constraint Profile**
+   - Available capital
+   - Available hours per week
+   - Current skill set, honestly measured
+   - Current network/distribution
+   - Risk tolerance
+   - Hard blockers
+
+3. **Select the best-fit vehicle or flag mismatch**
+   - If achievable, proceed with the chosen vehicle
+   - If unrealistic, say so clearly before building any path
+   - **Never build a plan for a goal that fails its own math**
+
+4. **Produce `vehicle_selection_record`**
+
+```json
+{
+  “goal_id”: “string”,
+  “true_outcome”: “string”,
+  “vehicles_considered”: [
+    {
+      “vehicle”: “string”,
+      “implied_revenue”: “string”,
+      “implied_customers_or_clients”: “string”,
+      “implied_timeline”: “string”,
+      “prerequisite_capital”: “string”,
+      “prerequisite_skills”: [“string”],
+      “operator_fit_score”: “high | medium | low | mismatch”,
+      “verdict”: “recommended | viable | hard | mismatch”
+    }
+  ],
+  “selected_vehicle”: “string”,
+  “selection_rationale”: “string”,
+  “goal_is_realistic”: true,
+  “flags”: [“string”],
+  “source_goal_id”: “string”,
+  “created_at”: “ISO date”,
+  “last_updated”: “ISO date”,
+  “version”: 1
+}
+```
+
+**Phase 0-B Gate:** If `goal_is_realistic: false`, surface this to the operator clearly and do not proceed to Layer 1.
 
 ## Operator Constraint Profile
 
