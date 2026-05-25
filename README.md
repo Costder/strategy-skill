@@ -10,6 +10,30 @@ It is not a replacement for `/goal`.
 
 `/strategy` is the map that tells the agent where to go, why that path makes sense, when to stop, and when to change direction.
 
+## What this repo is
+
+This repo ships a Hermes `SKILL.md` file.
+
+That means it gives an agent clear rules for how to think and plan.
+
+It does not, by itself, install a native slash command into every Hermes build.
+
+If your Hermes host has a real `/strategy` command wired in, you can use that.
+
+If not, load the skill and say:
+
+```text
+Use the strategy skill for this goal: [your goal]
+```
+
+That is the honest public status:
+
+```text
+Skill behavior: yes
+Native /strategy command everywhere: no
+Full background strategy engine: no
+```
+
 ## Why this skill exists
 
 Agents are good at doing work.
@@ -30,19 +54,17 @@ If the goal is wrong, the agent may work very hard on the wrong thing.
 
 Then it turns the answer into a clear plan.
 
-After that, the agent can use `/goal`, tasks, subagents, or normal tool calls to do the work.
+After that, the agent can turn parts of the plan into `/goal` prompts, tasks, subagent jobs, or normal tool work.
 
 ## `/goal` vs `/strategy`
 
-I looked at the Hermes `/goal` docs, the Hermes goal code, and Codex `/goal` behavior.
+Hermes `/goal` and Codex `/goal` use the Ralph-loop idea.
 
-`/goal` is a Ralph loop.
-
-That means:
+A Ralph loop means:
 
 - you give the agent one clear target
 - the agent keeps working across turns
-- a judge checks if the work is done
+- a judge or goal state checks if the work is done
 - if not done, the agent keeps going
 - it stops when done, paused, blocked, or out of budget
 
@@ -87,25 +109,31 @@ Good examples:
 
 These are good `/goal` jobs because the agent can know what done means.
 
-## When to use `/strategy`
+## When to use Strategy
 
-Use `/strategy` when the goal needs thought before action.
+Use Strategy when the goal needs thought before action.
 
 Good examples:
 
 ```text
+Use the strategy skill for this goal: Help me grow my app to 1,000 paying users.
+Use the strategy skill for this goal: Help me decide what product to build next.
+Use the strategy skill for this goal: Help me turn my messy business idea into a real plan.
+Use the strategy skill for this goal: Help me pick the best path to make $10k/month.
+Use the strategy skill for this goal: Help me choose what agents should work on this week.
+```
+
+If your host has `/strategy` wired in, the same ideas can be written as:
+
+```text
 /strategy Help me grow my app to 1,000 paying users.
-/strategy Help me decide what product to build next.
-/strategy Help me turn my messy business idea into a real plan.
-/strategy Help me pick the best path to make $10k/month.
-/strategy Help me choose what agents should work on this week.
 ```
 
 These are strategy jobs because the best path is not obvious yet.
 
-## What `/strategy` gives the user
+## What Strategy gives the user
 
-`/strategy` gives the user:
+Strategy gives the user:
 
 - a clearer goal
 - a better path
@@ -116,7 +144,7 @@ These are strategy jobs because the best path is not obvious yet.
 - a clear stop rule
 - a clear change-plan rule
 - a plan that can feed into `/goal`
-- a learning log so future plans get smarter
+- a learning log pattern so future plans can get smarter
 
 The big win:
 
@@ -125,11 +153,11 @@ The big win:
 /strategy helps the agent choose the right work.
 ```
 
-## How `/strategy` works
+## How Strategy works
 
-`/strategy` turns a big wish into a living plan.
+The skill tells the agent to turn a big wish into a living plan.
 
-It does this in layers:
+It uses these layers:
 
 1. Find the true outcome.
 2. Pick the best vehicle.
@@ -142,6 +170,10 @@ It does this in layers:
 9. Check signals over time.
 10. Change the plan when reality changes.
 11. Save lessons for the next goal.
+
+A plain skill install gives the agent this process.
+
+A deeper host integration can also add persistent files, dashboards, background loops, and real `/strategy` commands.
 
 ## What is a vehicle?
 
@@ -161,18 +193,18 @@ Possible vehicles:
 - build a partner channel
 ```
 
-`/strategy` helps the agent choose the vehicle before it starts doing work.
+Strategy helps the agent choose the vehicle before it starts doing work.
 
 This matters because a bad vehicle can waste months.
 
-## How `/strategy` can use `/goal`
+## How Strategy can use `/goal`
 
-`/strategy` can create a clean `/goal` packet.
+Strategy can create a clean `/goal` packet.
 
 Example:
 
 ```text
-/strategy goal:
+Strategy goal:
 Grow my app to 1,000 paying users.
 ```
 
@@ -193,7 +225,7 @@ Stop if blocked by missing domain or account access.
 
 That is the right split.
 
-`/strategy` chooses the path.
+Strategy chooses the path.
 
 `/goal` executes one clear piece of the path.
 
@@ -217,18 +249,18 @@ Restart Hermes or reload skills.
 Then use:
 
 ```text
-/strategy Help me choose the best path to reach my goal.
+Use the strategy skill for this goal: Help me choose the best path to reach my goal.
 ```
 
-If your Hermes build does not have a real `/strategy` slash command yet, load the skill by name and say:
+If your Hermes build has a real `/strategy` slash command, you can also use:
 
 ```text
-Use the strategy skill for this goal: [your goal]
+/strategy Help me choose the best path to reach my goal.
 ```
 
 ## OpenTrust
 
-If your agents use paid tools, outside workers, marketplaces, or shared budgets, pair `/strategy` with OpenTrust.
+If your agents use paid tools, outside workers, marketplaces, or shared budgets, pair Strategy with OpenTrust.
 
 OpenTrust helps agents prove who they are, what they can do, what they may spend, and how they should be paid.
 
@@ -245,7 +277,7 @@ Star OpenTrust, try it with agent workflows, and help make agent trust and payme
 ## Example start
 
 ```text
-/strategy I want to build a small online business that can make $5k/month within 6 months.
+Use the strategy skill for this goal: I want to build a small online business that can make $5k/month within 6 months.
 ```
 
 The agent should not start by making a todo list.
