@@ -683,25 +683,68 @@ When an assumption breaks:
 
 ## Learning Log
 
-Strategy should get smarter across goals.
+Strategy gets smarter across goals by distilling interaction trajectories into abstract, reusable principles — not by logging raw outcomes.
+
+Research basis: EvolveR (arXiv 2510.16079) demonstrated that agents that distill trajectories into abstract principles transfer learning significantly better than agents that log raw observations.
+
+### Two-Step Write Protocol
+
+Run distillation when:
+- A goal completes (success or kill)
+- A `critical` or `high`-impact assumption breaks (PCE score < 0.1)
+- A path is abandoned after a pivot trigger
+
+**Step 1 — Trajectory record** (raw, goal-specific)
+
+Write to `{strategy_store}/archive/trajectories.json`:
+
+```json
+{
+  "trajectory_id": "string",
+  "source_goal_id": "string",
+  "vehicle": "string",
+  "assumption_id": "string | null",
+  "stated_assumption": "string",
+  "actual_outcome": "string",
+  "path_status_at_event": "string",
+  "created_at": "ISO date",
+  "last_updated": "ISO date",
+  "version": 1
+}
+```
+
+**Step 2 — Distilled principle** (abstract, reusable)
+
+Write to `{strategy_store}/learning_log.json`. Before writing, check for an existing entry with the same `(source_goal_id + first 60 chars of principle)` — update rather than append if found.
 
 ```json
 {
   "learning_id": "string",
   "source_goal_id": "string",
-  "category": "assumption | vehicle | task_type | market | operator_behavior",
-  "finding": "string",
+  "source_trajectory_id": "string",
+  "vehicle_type": "string",
+  "operator_context": "string",
+  "principle": "In [vehicle type] goals with [context], [assumption type] assumptions should start at [adjusted value] until [validation milestone].",
   "confidence": "low | medium | high",
   "applicable_contexts": ["string"],
-  "date_logged": "ISO date string"
+  "created_at": "ISO date",
+  "last_updated": "ISO date",
+  "version": 1
 }
 ```
 
-Rules:
-- At goal completion or kill, run a retrospective and log at least 3 findings.
-- At every new Layer 0 run, query the Learning Log by vehicle type, market, and operator profile.
-- Surface relevant prior learnings before committing to a new path.
-- Start empty. Do not pre-populate it with fake wisdom.
+The `principle` field must be abstract and generalized — not a description of what happened on one goal, but a rule that would apply to a future goal in the same context.
+
+### Retrieval at Layer 0
+
+At every new Layer 0 run, before committing to a vehicle:
+
+1. Query Learning Log by `vehicle_type` matching the candidate vehicles
+2. Query by `operator_context` matching current operator constraints
+3. Surface the top 3 most relevant principles to the operator
+4. Incorporate any `high`-confidence principles into the Phase 0-B stress-test
+
+Start empty. Do not pre-populate with invented wisdom.
 
 ## Metrics
 
