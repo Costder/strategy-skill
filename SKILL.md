@@ -1,16 +1,36 @@
 ---
 name: strategy
 description: Use when a user wants a long-running /strategy goal system, evidence-based planning, autonomous task execution, subagent delegation, goal rerouting, or a strategic advisor that keeps working until blocked by approvals or missing input.
-version: 2.0.0
-author: Hermes Agent
+version: 3.0.0
+author: Costder
 license: MIT
 metadata:
-  hermes:
-    tags: [strategy, goals, planning, autonomous-execution, subagents, metrics, rerouting]
-    related_skills: [writing-plans, subagent-driven-development, opentrust-agent-payments, opentrust-registry-network]
+  tags: [strategy, goals, planning, autonomous-execution, subagents, metrics, rerouting]
+  related_skills: [writing-plans, subagent-driven-development]
 ---
 
 # Strategy Skill — Path to Victory
+
+## Runtime Adapter
+
+`{strategy_store}` is a placeholder. Map it to whatever persistent storage your runtime supports.
+
+Requirements:
+- Atomic per-file read/write
+- Key-value lookup by `goal_id`
+- Survives process restart
+
+Examples:
+```
+Hermes:      ~/.hermes/strategy/
+Claude Code: .claude/strategy/
+Generic:     ./strategy/ relative to working directory
+Testing:     in-memory dict
+```
+
+All file references in this skill use `{strategy_store}/` as the prefix.
+
+For strategies involving payments, external agent hiring, or spend authorization, pair with a trust/spend policy skill appropriate to your runtime.
 
 ## Overview
 
@@ -160,7 +180,7 @@ Private deployments may have aliases, but public docs and general users should s
 ```text
 Goal Input
   ↓
-LAYER 0: Strategic Reasoning
+LAYER 0: Complexity Gate → 0-A Discovery (stable gate) → 0-B Stress-Test (realistic gate)
   → Query Learning Log for prior relevant findings
   → Clarify true underlying outcome
   → Identify viable vehicle types
@@ -191,22 +211,40 @@ LOOP
   1. Load goals, paths, tasks, metrics, approvals, budgets, active jobs
   2. Recover stale or interrupted jobs
   3. Update metrics
-  4. Run Signal Intake Layer and check assumptions against actuals
-  5. If assumption broke, trigger Strategic Review protocol
-  6. Check Exit Conditions
-  7. Check operator load score
-  8. Find ready tasks
-  9. Score tasks
-  10. Run Load Balancer check
-  11. Dispatch safe tasks
-  12. Log outputs and update Learning Log when milestones/goals complete
-  13. Ask only for blockers
-  14. Reroute if path is failing
+  4. Run Signal Intake Layer — PCE-score each active assumption
+  5. If PCE score < 0.1, pause path and notify operator
+  6. If PCE score 0.1–0.3, flag for Strategic Review on next cycle
+  7. Check Exit Conditions
+  8. Check operator load score
+  9. Find ready tasks
+  10. Score tasks
+  11. Run Load Balancer check
+  12. Dispatch safe tasks
+  13. Log outputs and update Learning Log when milestones/goals complete
+  14. Ask only for blockers
+  15. Reroute if path is failing
 ```
 
-## Layer 0 — Strategic Reasoning
+## Layer 0 — Goal Complexity Gate
 
-Layer 0 runs once per new goal before the normal 5 setup questions. It should feel like a sharp advisor having a 10-minute conversation, not an interrogation.
+Before running any discovery or planning, compute a Goal Complexity Score:
+
+| Signal | Points |
+|---|---|
+| Budget at risk > $500 or equivalent | +2 |
+| Timeline > 3 months | +2 |
+| Vehicle is unclear or multiple viable options exist | +3 |
+| Goal requires other people or external approvals | +2 |
+| Learning Log has a broken assumption in same vehicle type | +2 |
+
+- Score **< 4 → Fast path**: confirm vehicle in one question, check operator constraints in one question, skip Phase 0-B financial stress-test, proceed to Layer 1
+- Score **≥ 4 → Full path**: run Phase 0-A then Phase 0-B in sequence
+
+## Layer 0-A — Discovery
+
+Run Phase 0-A first. Do not generate paths or score vehicles yet. This phase only.
+
+Research basis: HexMachina (arXiv 2506.04651) found that agents that simultaneously discover the environment and build strategy fail to stabilize. Dedicated discovery before strategy improved outcomes by 15+ percentage points.
 
 Sequence:
 
@@ -215,72 +253,117 @@ Sequence:
    - Example: “launch app” may really mean “financial independence by 35.”
    - Ask: “What does success actually look like in your life?”
 
-2. **Identify viable vehicle types**
-   - Business: SaaS, services, marketplace, high-ticket, physical product.
-   - Employment: job, consulting, freelance.
-   - Investment: equity, real estate, assets.
-   - Hybrid combinations.
-   - Do not assume the stated path is the best path.
-
-3. **Stress-test the math on each viable vehicle**
-   - What revenue/profit numbers are required?
-   - What margins, volume, and price points does that imply?
-   - What is the realistic timeline?
-   - What capital, skills, or connections are prerequisites?
-
-4. **Run Environment Check**
+2. **Survey the environment**
    - Is the space crowded?
    - Who are the main players?
    - Is timing favorable, neutral, or unfavorable?
    - Are there tailwinds, headwinds, dependencies, or timing constraints?
 
-5. **Score each vehicle against the Operator Constraint Profile**
-   - Available capital.
-   - Available hours per week.
-   - Current skill set, honestly measured.
-   - Current network/distribution.
-   - Risk tolerance.
-   - Hard blockers.
+3. **Identify viable vehicle types — list only, no scoring yet**
+   - Business: SaaS, services, marketplace, high-ticket, physical product
+   - Employment: job, consulting, freelance
+   - Investment: equity, real estate, assets
+   - Hybrid combinations
+   - Do not assume the stated path is the best path
 
-6. **Select the best-fit vehicle or flag mismatch**
-   - If achievable, proceed with the chosen vehicle.
-   - If unrealistic, say so clearly before building any path.
-   - Never build a plan for a goal that fails its own math.
+4. **Document operator constraints**
+   - Available capital
+   - Available hours per week
+   - Current skill set, honestly measured
+   - Current network/distribution
+   - Risk tolerance
+   - Hard blockers
 
-### Vehicle Selection Record
-
-Store one Vehicle Selection Record per goal:
+5. **Produce `vehicle_discovery_record`**
 
 ```json
 {
-  "true_outcome": "string",
-  "vehicles_considered": [
-    {
-      "vehicle": "string",
-      "implied_revenue": "string",
-      "implied_customers_or_clients": "string",
-      "implied_timeline": "string",
-      "prerequisite_capital": "string",
-      "prerequisite_skills": ["string"],
-      "operator_fit_score": "high | medium | low | mismatch",
-      "verdict": "recommended | viable | hard | mismatch"
-    }
-  ],
-  "environment_assessment": {
-    "market_crowding": "low | medium | high",
-    "timing": "favorable | neutral | unfavorable",
-    "key_risks": ["string"],
-    "key_tailwinds": ["string"],
-    "overall_environment_score": "green | yellow | red"
+  “goal_id”: “string”,
+  “true_outcome”: “string”,
+  “candidate_vehicles”: [“string”],
+  “environment_assessment”: {
+    “market_crowding”: “low | medium | high”,
+    “timing”: “favorable | neutral | unfavorable”,
+    “key_risks”: [“string”],
+    “key_tailwinds”: [“string”],
+    “overall_environment_score”: “green | yellow | red”
   },
-  "selected_vehicle": "string",
-  "selection_rationale": "string",
-  "goal_is_realistic": true,
-  "flags": ["string"]
+  “operator_constraints_documented”: true,
+  “status”: “stable | incomplete”,
+  “source_goal_id”: “string”,
+  “created_at”: “ISO date”,
+  “last_updated”: “ISO date”,
+  “version”: 1
 }
 ```
 
-If `overall_environment_score` is `red`, do not block automatically, but require operator acknowledgment before moving into Layer 1.
+**Phase 0-A Gate:** `vehicle_discovery_record.status` must be `”stable”` before proceeding to Phase 0-B.
+
+Status is `”stable”` when all four items are complete:
+1. True outcome clarified
+2. Environment surveyed
+3. Candidate vehicles listed
+4. Operator constraints documented
+
+If any item is missing, ask one clarifying question and wait. Do not proceed with incomplete discovery.
+
+If `overall_environment_score` is `red`, require operator acknowledgment before moving to Phase 0-B.
+
+## Layer 0-B — Stress-Test
+
+Run Phase 0-B only after the Phase 0-A gate passes.
+
+Sequence:
+
+1. **Stress-test the math on each candidate vehicle**
+   - What revenue/profit numbers are required?
+   - What margins, volume, and price points does that imply?
+   - What is the realistic timeline?
+   - What capital, skills, or connections are prerequisites?
+
+2. **Score each vehicle against the Operator Constraint Profile**
+   - Available capital
+   - Available hours per week
+   - Current skill set, honestly measured
+   - Current network/distribution
+   - Risk tolerance
+   - Hard blockers
+
+3. **Select the best-fit vehicle or flag mismatch**
+   - If achievable, proceed with the chosen vehicle
+   - If unrealistic, say so clearly before building any path
+   - **Never build a plan for a goal that fails its own math**
+
+4. **Produce `vehicle_selection_record`**
+
+```json
+{
+  “goal_id”: “string”,
+  “true_outcome”: “string”,
+  “vehicles_considered”: [
+    {
+      “vehicle”: “string”,
+      “implied_revenue”: “string”,
+      “implied_customers_or_clients”: “string”,
+      “implied_timeline”: “string”,
+      “prerequisite_capital”: “string”,
+      “prerequisite_skills”: [“string”],
+      “operator_fit_score”: “high | medium | low | mismatch”,
+      “verdict”: “recommended | viable | hard | mismatch”
+    }
+  ],
+  “selected_vehicle”: “string”,
+  “selection_rationale”: “string”,
+  “goal_is_realistic”: true,
+  “flags”: [“string”],
+  “source_goal_id”: “string”,
+  “created_at”: “ISO date”,
+  “last_updated”: “ISO date”,
+  “version”: 1
+}
+```
+
+**Phase 0-B Gate:** If `goal_is_realistic: false`, surface this to the operator clearly and do not proceed to Layer 1.
 
 ## Operator Constraint Profile
 
@@ -321,6 +404,19 @@ Run the original 5 setup questions only after Layer 0 completes:
 
 If the user already gave enough detail, do not ask again. State assumptions and continue.
 
+### Mode
+
+Every goal has a `mode` that constrains what the agent may do autonomously:
+
+| Mode | What the agent may do |
+|---|---|
+| `researcher` | Read-only: search, summarize, analyze, produce reports. No file writes, no external actions. |
+| `builder` | Create and edit private files and drafts. No external communication, no deploys. |
+| `engineer` | Technical work including tests, staged builds, and deploys. Level 3 actions require approval. |
+| `coach` | Advise and critique only. No direct file or external actions. |
+
+Default if not specified: `builder`. Set at goal initialization. Stored in the goal record and respected by every subagent dispatch for that goal.
+
 Each goal stores:
 
 ```json
@@ -353,7 +449,7 @@ Every path and milestone is built on assumptions. Make those assumptions visible
   "type": "conversion | cac | timeline | demand | pricing | skill | other",
   "assumed_value": "string",
   "actual_value": null,
-  "status": "unvalidated | confirmed | broken | updated",
+  "status": "unvalidated | confirmed | at_risk | broken | updated",
   "last_checked": "ISO date string",
   "impact_if_broken": "low | medium | high | critical"
 }
@@ -369,6 +465,14 @@ Rules:
 ## Exit Conditions
 
 Every goal needs predefined kill and pivot triggers. Dead strategies should not run forever.
+
+### Pre-Mortem
+
+Before finalizing exit conditions, ask the operator:
+
+> "Imagine it's [goal deadline] and the goal failed. What is the single most likely cause?"
+
+Use that answer to write or refine the **primary kill trigger**. This surfaces the risk the operator is already thinking about, rather than defaulting to a generic time threshold.
 
 ```json
 {
@@ -397,7 +501,7 @@ Every goal needs predefined kill and pivot triggers. Dead strategies should not 
 ```
 
 Defaults if the operator does not specify:
-- Kill trigger: core metric has not moved after 90 days of active execution.
+- Kill trigger: core metric [name] has not changed by more than 10% from its value at goal start, measured over any 30-day window, for 3 consecutive windows. The operator sets the threshold percentage during initialization; 10% is the default if unspecified.
 - Pivot trigger: core metric is under 30% of target after 50% of timeline elapsed.
 - Budget kill: total cost exceeds max budget.
 - Path exhaustion: if P1 and P2 both fail, escalate before generating P3.
@@ -447,33 +551,44 @@ Task states remain:
 
 ## Layer 3 — Scoring, Bandwidth, Dispatch
 
-Keep the v1 priority formula:
+### Priority Formula
+
+Research basis: CLEAR (arXiv 2511.14136) found that agents optimized for task efficacy alone were 4.4–10.8x more expensive than cost-aware alternatives. Cost is integrated directly into scoring rather than handled as a separate check.
 
 ```text
-priority = value + urgency + confidence + synergy - effort - cost - risk
+score = (Reach × Impact × Confidence) ÷ (Effort × Cost_multiplier)
 ```
 
-Before dispatching any task, run Load Balancer check:
+**Dimension rubrics (score 1–5):**
 
-```text
-1. Calculate current weekly hour load across all active goals.
-2. If projected load > operator available_hours_per_week:
-   → Do not dispatch.
-   → Mark task as deferred with reason: bandwidth.
-   → Suggest lower-priority tasks to pause or drop.
-3. If load_score > 80%, show yellow flag.
-4. If load_score > 100%, show red flag and stop dispatching.
-```
+| Dimension | 1 | 3 | 5 |
+|---|---|---|---|
+| **Reach** | Unblocks 0 other tasks | Unblocks 1–2 tasks on current path | Unblocks a milestone or an entire parallel path |
+| **Impact** | <5% movement on core metric | 10–25% movement on core metric | >25% movement or removes a critical blocker |
+| **Confidence** | Assumption unvalidated, high impact if broken | Assumption plausible, medium impact if broken | Assumption confirmed, or impact is low regardless |
+| **Effort** | >8 operator-hours | 2–8 operator-hours | <2 operator-hours |
 
-Load score:
+**Cost multiplier:**
 
-```text
-sum(estimated_hours for all dispatched + ready tasks this week)
-÷ available_hours_per_week
-× 100
-```
+| Weekly spend position | Multiplier |
+|---|---|
+| Task is within weekly budget | 1.0 |
+| Task pushes cumulative spend to >75% of weekly budget | 1.5 |
+| Task would exhaust weekly budget | 2.0 |
 
-Recommended solo-operator limit: 2 active goals at a time.
+**Dispatch thresholds:**
+- Score ≥ 8.0: dispatch candidate
+- Score 2.0–7.9: backlog
+- Score < 2.0: defer or drop
+
+### Dispatch Rules
+
+Before dispatching any task:
+1. Compute RICE score
+2. Confirm score ≥ 8.0
+3. Confirm task autonomy level is within approved range
+4. Dispatch safe tasks
+5. Gate Level 3+ actions on approval
 
 ## Subagent Dispatch
 
@@ -524,25 +639,51 @@ Final response must include:
 
 Rule: if a user would reasonably feel surprised it happened, ask first.
 
-## Signal Intake Layer
+## Signal Intake Layer — PCE Scoring
 
 Run after metrics update in every loop cycle.
 
-Default deviation thresholds:
+Research basis: PCE framework (arXiv 2602.04326) treats assumptions as first-class decision variables and scores them before metric data arrives, solving the problem that assumption breaks cause metric failures — not the reverse.
 
-| Metric Type | Review Trigger |
+For each active assumption, run three steps:
+
+```text
+PLANNER:   What paths or milestones does this assumption enable?
+           What happens to the plan if this assumption is false?
+
+COMPOSER:  Given current evidence (completed tasks, metrics, operator updates),
+           what is the likelihood this assumption still holds?
+           Evidence: [list what was checked]
+           likelihood: 0.0 (certainly false) → 1.0 (certainly true)
+
+EVALUATOR: score = likelihood(0–1) × goal_directed_gain(0–1)
+                   ÷ execution_cost_if_false(1–3)
+
+           goal_directed_gain: how much does this assumption being true
+             advance the core metric?
+             0.0 = no effect on core metric
+             1.0 = determines whether the goal succeeds
+
+           execution_cost_if_false:
+             1 = low    — can break without stopping work; easy to reroute
+             2 = medium — breaking this assumption requires path reroute
+             3 = critical — breaking this assumption may require killing the goal
+```
+
+Thresholds:
+
+| Score | Action |
 |---|---|
-| `conversion_rate` | 50% deviation |
-| `cac` | 100% deviation |
-| `timeline` | 25% slip |
-| `revenue` | 30% below projection |
+| ≥ 0.3 | Assumption healthy — continue |
+| 0.1–0.3 | Flag for Strategic Review on next loop cycle |
+| < 0.1 | Pause path immediately — notify operator with full assumption summary and request decision |
 
-Rules:
-- For each active goal, compare actual metrics to assumptions.
-- If actual deviates beyond threshold, flag assumption as `broken`.
-- Calculate impact score.
-- If impact is `medium` or higher, queue Strategic Review.
-- If impact is `critical`, pause the path and notify the operator immediately.
+Update assumption `status` field:
+- Score ≥ 0.3 → `confirmed` (if previously unvalidated) or `active`
+- Score 0.1–0.3 → `at_risk`
+- Score < 0.1 → `broken`
+
+The PCE scoring pass replaces the deviation-percentage threshold table. It produces a score even when metrics are stale, because it reasons from available evidence rather than requiring a specific metric reading.
 
 ## Strategic Review Protocol
 
@@ -561,25 +702,68 @@ When an assumption breaks:
 
 ## Learning Log
 
-Strategy should get smarter across goals.
+Strategy gets smarter across goals by distilling interaction trajectories into abstract, reusable principles — not by logging raw outcomes.
+
+Research basis: EvolveR (arXiv 2510.16079) demonstrated that agents that distill trajectories into abstract principles transfer learning significantly better than agents that log raw observations.
+
+### Two-Step Write Protocol
+
+Run distillation when:
+- A goal completes (success or kill)
+- A `critical` or `high`-impact assumption breaks (PCE score < 0.1)
+- A path is abandoned after a pivot trigger
+
+**Step 1 — Trajectory record** (raw, goal-specific)
+
+Write to `{strategy_store}/archive/trajectories.json`:
+
+```json
+{
+  "trajectory_id": "string",
+  "source_goal_id": "string",
+  "vehicle": "string",
+  "assumption_id": "string | null",
+  "stated_assumption": "string",
+  "actual_outcome": "string",
+  "path_status_at_event": "string",
+  "created_at": "ISO date",
+  "last_updated": "ISO date",
+  "version": 1
+}
+```
+
+**Step 2 — Distilled principle** (abstract, reusable)
+
+Write to `{strategy_store}/learning_log.json`. Before writing, check for an existing entry with the same `(source_goal_id + first 60 chars of principle)` — update rather than append if found.
 
 ```json
 {
   "learning_id": "string",
   "source_goal_id": "string",
-  "category": "assumption | vehicle | task_type | market | operator_behavior",
-  "finding": "string",
+  "source_trajectory_id": "string",
+  "vehicle_type": "string",
+  "operator_context": "string",
+  "principle": "In [vehicle type] goals with [context], [assumption type] assumptions should start at [adjusted value] until [validation milestone].",
   "confidence": "low | medium | high",
   "applicable_contexts": ["string"],
-  "date_logged": "ISO date string"
+  "created_at": "ISO date",
+  "last_updated": "ISO date",
+  "version": 1
 }
 ```
 
-Rules:
-- At goal completion or kill, run a retrospective and log at least 3 findings.
-- At every new Layer 0 run, query the Learning Log by vehicle type, market, and operator profile.
-- Surface relevant prior learnings before committing to a new path.
-- Start empty. Do not pre-populate it with fake wisdom.
+The `principle` field must be abstract and generalized — not a description of what happened on one goal, but a rule that would apply to a future goal in the same context.
+
+### Retrieval at Layer 0
+
+At every new Layer 0 run, before committing to a vehicle:
+
+1. Query Learning Log by `vehicle_type` matching the candidate vehicles
+2. Query by `operator_context` matching current operator constraints
+3. Surface the top 3 most relevant principles to the operator
+4. Incorporate any `high`-confidence principles into the Phase 0-B stress-test
+
+Start empty. Do not pre-populate with invented wisdom.
 
 ## Metrics
 
@@ -594,17 +778,50 @@ Metric sources:
 
 If metrics are stale, Strategy says so. If most metrics are stale, it avoids major reroutes and asks for updated data.
 
-## Communication Rhythm
+### Required Metrics: CLEAR Dimensions
 
-Keep communication low-noise.
+Research basis: CLEAR (arXiv 2511.14136) found that agent reliability drops from ~60% to ~25% without explicit tracking, and that ignoring cost produces 4.4–10.8x waste. Every goal must track both.
 
-| Cycle | Purpose | Message? |
-|---|---|---|
-| Morning | recover jobs, update metrics, dispatch work, ask one important question | Yes, short |
-| Midday | continue work if budget and gates allow | No, unless blocked |
-| Evening | summarize completed work, cost, blockers, next steps | Yes, short |
-| Night | quiet private work only | No, unless urgent |
-| Weekly | review evidence, reroute, prune goals, plan next week | Yes |
+In addition to the operator-defined core metric, every goal tracks:
+
+**`cost_per_outcome`**
+- Formula: `total_spend_to_date ÷ core_metric_current_value`
+- Track every loop cycle
+- If it increases for 3 consecutive cycles while the core metric is flat → surface a Strategic Review prompt: "Cost per unit of progress is rising while the core metric is not moving. Review the active path."
+
+**`plan_consistency`**
+- Definition: percentage of loop cycles in the last 7 where the active path and top-priority task did not change
+- Track every loop cycle
+- If `plan_consistency` < 40% over any 3-cycle window → surface: "Plan is changing frequently — possible oscillation. Review assumptions before next dispatch."
+
+These are tracked automatically by the agent. They do not replace the operator-defined core metric.
+
+## Session Start Protocol
+
+Run this once at the start of every session. Works for both continuous agents and stateless LLMs.
+
+```text
+1. Load active goals from {strategy_store}
+2. For each active goal, produce a ≤30-word status line:
+   "[goal title] — [status] — top metric: [value vs target] — top blocker: [or none]"
+3. If any metric source has not been updated in >7 days, surface at most
+   one stale-metric question
+4. Load full records only for goals with dispatched tasks or pending approvals
+5. Proceed to loop — no message unless something needs operator input
+```
+
+## Communication Rules
+
+Speak only when something changes state. Do not send messages on a clock.
+
+| Trigger | Output |
+|---|---|
+| Blocker encountered | Immediate, ≤3 sentences: what is blocked, what is needed to unblock |
+| Assumption PCE score drops below 0.3 | Immediate: which assumption, current score, recommended action |
+| Assumption PCE score drops below 0.1 | Immediate: path paused, full assumption summary, operator decision required |
+| Milestone completed | Summary: what completed, total cost to date, next ready tasks |
+| Session start with no changes since last session | Silent — no message |
+| Weekly (if agent runs continuously) | Review evidence, reroute, prune goals, plan next week |
 
 ## Observability Commands
 
@@ -628,14 +845,17 @@ Public command names:
 
 Progress should be real or coarse. If a subagent cannot report real progress, show elapsed time instead of fake percentages.
 
-## Storage Shape
+## Memory Architecture
 
-Default local state:
+Strategy uses **Pattern B** memory: the agent's context window holds active working state; `{strategy_store}` holds all persistent records. Do not graduate to Pattern C (tiered with learned control) unless empirical data shows it is needed for your workload.
+
+### Store Layout
 
 ```text
-~/.hermes/strategy/
+{strategy_store}/
   goals.json
   operator_profile.json
+  vehicle_discovery_records.json
   vehicle_selection_records.json
   assumptions.json
   exit_conditions.json
@@ -646,8 +866,29 @@ Default local state:
   cost_tracker.json
   recovery_log.json
   learning_log.json
+  archive/
+    trajectories.json
   work/
 ```
+
+### Write-Path Rules
+
+Every record written to `{strategy_store}` must include these base fields:
+
+```json
+{
+  "source_goal_id": "string",
+  "created_at": "ISO date",
+  "last_updated": "ISO date",
+  "version": 1
+}
+```
+
+Additional write-path rules — follow all of them:
+- **Versioning:** Before writing an assumption update, check for an existing record with the same `assumption_id`. Increment `version`; do not create a duplicate.
+- **Staleness:** When loading records, flag any record with `last_updated` > 14 days and `source: manual`. Do not silently trust stale data.
+- **Deduplication:** Before writing a Learning Log entry, check for an existing entry matching `(source_goal_id + first 60 chars of distilled principle text)`. If a near-duplicate exists, update it rather than append.
+- **Canonicalization:** Do not append raw interaction output verbatim. Summarize and canonicalize before storing (see Learning Log section).
 
 Existing deployments may use another backend. Keep adapters backward compatible.
 
@@ -691,6 +932,26 @@ The v2 implementation is complete when:
 - [ ] Learning Log is written to at goal completion or kill
 - [ ] Learning Log is consulted at every new Layer 0 run
 - [ ] Existing active goals remain backward compatible
+
+**v3 additions:**
+- [ ] Runtime Adapter section present; no `~/.hermes/` or platform-specific paths in skill body
+- [ ] Write-path rules documented: version field, dedup check, staleness flag, canonicalization requirement
+- [ ] Session start protocol replaces morning/evening rhythm
+- [ ] Event-driven communication table replaces clock-based cadence
+- [ ] Four mode types defined with explicit behavioral contracts
+- [ ] Layer 0 Complexity Gate with fast path (< 4) and full path (≥ 4) documented
+- [ ] Layer 0 split into Phase 0-A (Discovery) and Phase 0-B (Stress-Test) with gate between them
+- [ ] PCE scoring format (PLANNER / COMPOSER / EVALUATOR) replaces deviation-percentage Signal Intake table
+- [ ] PCE thresholds defined: ≥ 0.3 (healthy), 0.1–0.3 (flag), < 0.1 (pause + notify)
+- [ ] `at_risk` is a valid assumption status
+- [ ] Learning Log uses two-step distillation: trajectory to archive, principle to learning_log
+- [ ] Learning Log retrieval at Layer 0 queries by `vehicle_type` and `operator_context`
+- [ ] RICE formula present with rubrics (1 / 3 / 5 anchors per dimension)
+- [ ] Cost multiplier (1.0 / 1.5 / 2.0) integrated into RICE, Load Balancer section removed
+- [ ] Pre-mortem step added to exit condition initialization
+- [ ] Kill trigger default uses specific percentage (10%), window (30 days), and consecutive count (3)
+- [ ] `cost_per_outcome` and `plan_consistency` added as required metric types
+- [ ] `plan_consistency` < 40% triggers oscillation warning
 
 ## Success Criteria
 
