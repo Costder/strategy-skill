@@ -1,7 +1,7 @@
 ---
 name: strategy
 description: Use when a user wants a long-running /strategy goal system, evidence-based planning, autonomous task execution, subagent delegation, goal rerouting, or a strategic advisor that keeps working until blocked by approvals or missing input.
-version: 3.0.0
+version: 3.1.0
 author: Costder
 license: MIT
 metadata:
@@ -212,17 +212,18 @@ LOOP
   2. Recover stale or interrupted jobs
   3. Update metrics
   4. Run Signal Intake Layer — PCE-score each active assumption
-  5. If PCE score < 0.1, pause path and notify operator
-  6. If PCE score 0.1–0.3, flag for Strategic Review on next cycle
+  5. If p_false ≥ pause threshold (impact-scaled), pause path and notify operator
+  6. If p_false in flag band, mark assumption at_risk and flag for Strategic Review on next cycle
   7. Check Exit Conditions
   8. Check operator load score
-  9. Find ready tasks
-  10. Score tasks
-  11. Run Load Balancer check
-  12. Dispatch safe tasks
+  9. Find ready tasks; retrieve top-3 Learning Log principles matching current vehicle and context
+  10. Score tasks using priority formula; select weekly dispatch set via knapsack (maximize RICE subject to hour cap)
+  11. Confirm task autonomy level is within approved range
+  12. Dispatch safe tasks; gate Level 3+ actions on approval
   13. Log outputs and update Learning Log when milestones/goals complete
   14. Ask only for blockers
-  15. Reroute if path is failing
+  15. Retrieve top-3 Learning Log principles before every Strategic Review
+  16. Detect bad cycles: if 3 consecutive cycles show no new evidence and the top-priority task recycles, pause and notify operator
 ```
 
 ## Layer 0 — Goal Complexity Gate
@@ -244,7 +245,7 @@ Before running any discovery or planning, compute a Goal Complexity Score:
 
 Run Phase 0-A first. Do not generate paths or score vehicles yet. This phase only.
 
-Research basis: HexMachina (arXiv 2506.04651) found that agents that simultaneously discover the environment and build strategy fail to stabilize. Dedicated discovery before strategy improved outcomes by 15+ percentage points.
+Research basis: HexMachina (arXiv 2506.04651) found that agents that simultaneously discover the environment and build strategy fail to stabilize. Dedicated discovery before strategy improves outcome reliability.
 
 Sequence:
 
@@ -450,6 +451,7 @@ Every path and milestone is built on assumptions. Make those assumptions visible
   "assumed_value": "string",
   "actual_value": null,
   "status": "unvalidated | confirmed | at_risk | broken | updated",
+  "uncertainty_source": "specification | model_world",
   "last_checked": "ISO date string",
   "impact_if_broken": "low | medium | high | critical"
 }
@@ -505,6 +507,7 @@ Defaults if the operator does not specify:
 - Pivot trigger: core metric is under 30% of target after 50% of timeline elapsed.
 - Budget kill: total cost exceeds max budget.
 - Path exhaustion: if P1 and P2 both fail, escalate before generating P3.
+- Stall kill: if 3 consecutive loop cycles produce no new evidence and the same task recycles to the top of the dispatch queue, pause all tasks, notify the operator, and do not re-dispatch until the operator confirms or adjusts the plan.
 
 Rules:
 - Evaluate exit conditions every loop cycle.
@@ -535,6 +538,8 @@ Task schema stays compatible with v1:
   "priority": 7.2
 }
 ```
+
+**Reliability guard:** Any task with `estimated_hours > 4` must be decomposed into checkpointed subgoals before dispatch. Each subgoal saves its partial output to `{strategy_store}/work/` before proceeding. This prevents total work loss from a mid-execution failure.
 
 Task states remain:
 
@@ -568,13 +573,15 @@ score = (Reach × Impact × Confidence) ÷ (Effort × Cost_multiplier)
 | **Confidence** | Assumption unvalidated, high impact if broken | Assumption plausible, medium impact if broken | Assumption confirmed, or impact is low regardless |
 | **Effort** | >8 operator-hours | 2–8 operator-hours | <2 operator-hours |
 
-**Cost multiplier:**
+**Cost multiplier (budget-aware):**
 
-| Weekly spend position | Multiplier |
-|---|---|
-| Task is within weekly budget | 1.0 |
-| Task pushes cumulative spend to >75% of weekly budget | 1.5 |
-| Task would exhaust weekly budget | 2.0 |
+```text
+r = remaining_weekly_budget ÷ weekly_budget          # clamp to [0, 1]
+cost_share = estimated_cost ÷ max(remaining_weekly_budget, ε)   # ε = 1
+Cost_multiplier = 1 + cost_share × (2 − r)
+```
+
+A zero-cost task gets multiplier 1.0. A task that would consume the entire remaining budget when the budget is nearly spent gets multiplier ≈ 3.0. The multiplier rises smoothly with both cost size and budget depletion — no discrete step-jumps.
 
 **Dispatch thresholds:**
 - Score ≥ 8.0: dispatch candidate
@@ -584,9 +591,9 @@ score = (Reach × Impact × Confidence) ÷ (Effort × Cost_multiplier)
 ### Dispatch Rules
 
 Before dispatching any task:
-1. Compute RICE score
-2. Confirm score ≥ 8.0
-3. Confirm task autonomy level is within approved range
+1. Compute RICE score for all ready tasks
+2. Select the weekly dispatch set via knapsack: maximize total RICE score subject to the operator's weekly hour cap. Include only tasks with score ≥ 8.0.
+3. Confirm each selected task's autonomy level is within approved range
 4. Dispatch safe tasks
 5. Gate Level 3+ actions on approval
 
@@ -610,6 +617,7 @@ Context:
 - Dependencies completed: [list]
 - Relevant files/URLs: [list]
 - User constraints: [approval policy, budget, tone]
+- Active exit triggers: [from exit_conditions.json — if any fire during execution, stop immediately]
 
 Load relevant skills if available.
 
@@ -618,6 +626,7 @@ Deliverable:
 - Save it at [path] if file output is expected
 - Do not perform Level 3+ actions
 - If blocked, return the exact approval/input needed
+- If an exit trigger fires during execution, return immediately with status: exit_trigger_fired and do not continue
 
 Final response must include:
 - status: done / blocked / failed
@@ -656,32 +665,37 @@ COMPOSER:  Given current evidence (completed tasks, metrics, operator updates),
            Evidence: [list what was checked]
            likelihood: 0.0 (certainly false) → 1.0 (certainly true)
 
-EVALUATOR: score = likelihood(0–1) × goal_directed_gain(0–1)
-                   ÷ execution_cost_if_false(1–3)
+EVALUATOR: Two outputs — one for the testing queue, one for path health.
 
-           goal_directed_gain: how much does this assumption being true
-             advance the core metric?
-             0.0 = no effect on core metric
-             1.0 = determines whether the goal succeeds
+           p_false = 1 − likelihood
 
-           execution_cost_if_false:
-             1 = low    — can break without stopping work; easy to reroute
-             2 = medium — breaking this assumption requires path reroute
-             3 = critical — breaking this assumption may require killing the goal
+           cost_weight = impact_if_broken mapped to:
+             low      → 1
+             medium   → 2
+             high     → 3
+             critical → 4
+
+           (1) validation_priority = p_false × cost_weight
+               Higher score = test this assumption sooner.
+
+           (2) health threshold (impact-scaled):
+               critical  → pause path if p_false ≥ 0.20
+               high      → pause path if p_false ≥ 0.30
+               medium    → pause path if p_false ≥ 0.50
+               low       → pause path if p_false ≥ 0.70
+               Flag for Strategic Review if p_false is within 0.10 below the pause line.
 ```
 
 Thresholds:
 
-| Score | Action |
-|---|---|
-| ≥ 0.3 | Assumption healthy — continue |
-| 0.1–0.3 | Flag for Strategic Review on next loop cycle |
-| < 0.1 | Pause path immediately — notify operator with full assumption summary and request decision |
+Apply the health threshold from EVALUATOR step (2) based on `impact_if_broken`:
+- If p_false ≥ pause line → pause path immediately, notify operator, request decision
+- If p_false is in the flag band (within 0.10 below pause line) → flag for Strategic Review
 
 Update assumption `status` field:
-- Score ≥ 0.3 → `confirmed` (if previously unvalidated) or `active`
-- Score 0.1–0.3 → `at_risk`
-- Score < 0.1 → `broken`
+- p_false below flag band → `confirmed` (if previously unvalidated) or status unchanged
+- p_false in flag band → `at_risk`
+- p_false ≥ pause line → `broken`
 
 The PCE scoring pass replaces the deviation-percentage threshold table. It produces a score even when metrics are stale, because it reasons from available evidence rather than requiring a specific metric reading.
 
@@ -689,14 +703,18 @@ The PCE scoring pass replaces the deviation-percentage threshold table. It produ
 
 Strategic Review is not ordinary task rerouting.
 
-When an assumption breaks:
+When an assumption breaks or is flagged at_risk:
 
 ```text
-1. Identify which assumption broke.
+0. Summarize current canonical state from persistent store: active goal, selected vehicle,
+   metric snapshot, and full assumption registry. Use this summary as the replanning
+   context — do not rely on session memory or in-context inference.
+1. Identify which assumption broke (or is at_risk).
 2. Re-run Layer 0 vehicle stress-test with updated real numbers.
 3. Evaluate whether the current path is still viable.
 4. If yes, adjust milestones and task estimates.
 5. If no, generate alternative path options and present them to the operator.
+   Always include "abandon this goal" as one explicit option when the math no longer closes.
 6. Never silently continue a path that has failed its assumptions.
 ```
 
@@ -704,7 +722,7 @@ When an assumption breaks:
 
 Strategy gets smarter across goals by distilling interaction trajectories into abstract, reusable principles — not by logging raw outcomes.
 
-Research basis: EvolveR (arXiv 2510.16079) demonstrated that agents that distill trajectories into abstract principles transfer learning significantly better than agents that log raw observations.
+Research basis: EvolveR (arXiv 2510.16079) argues that agents that distill trajectories into abstract principles transfer learning significantly better than agents that log raw observations.
 
 ### Two-Step Write Protocol
 
@@ -754,14 +772,18 @@ Write to `{strategy_store}/learning_log.json`. Before writing, check for an exis
 
 The `principle` field must be abstract and generalized — not a description of what happened on one goal, but a rule that would apply to a future goal in the same context.
 
-### Retrieval at Layer 0
+### Retrieval
 
-At every new Layer 0 run, before committing to a vehicle:
+**At Layer 0** — before committing to a vehicle:
 
 1. Query Learning Log by `vehicle_type` matching the candidate vehicles
 2. Query by `operator_context` matching current operator constraints
 3. Surface the top 3 most relevant principles to the operator
 4. Incorporate any `high`-confidence principles into the Phase 0-B stress-test
+
+**Before every Strategic Review** — load the top 3 principles matching the current vehicle type and broken assumption type, and present them alongside the assumption summary to inform the rerouting decision.
+
+**Before every dispatch cycle** (loop step 9) — load the top 3 principles matching the current vehicle and active path type, and surface any that conflict with the planned dispatch.
 
 Start empty. Do not pre-populate with invented wisdom.
 
@@ -817,8 +839,8 @@ Speak only when something changes state. Do not send messages on a clock.
 | Trigger | Output |
 |---|---|
 | Blocker encountered | Immediate, ≤3 sentences: what is blocked, what is needed to unblock |
-| Assumption PCE score drops below 0.3 | Immediate: which assumption, current score, recommended action |
-| Assumption PCE score drops below 0.1 | Immediate: path paused, full assumption summary, operator decision required |
+| Assumption p_false enters flag band (within 0.10 below impact-scaled pause line) | Immediate: which assumption, current p_false, recommended validation action |
+| Assumption p_false reaches or exceeds pause line | Immediate: path paused, full assumption summary, operator decision required |
 | Milestone completed | Summary: what completed, total cost to date, next ready tasks |
 | Session start with no changes since last session | Silent — no message |
 | Weekly (if agent runs continuously) | Review evidence, reroute, prune goals, plan next week |
@@ -916,6 +938,8 @@ If an existing goal has no Vehicle Selection Record, Assumption Registry, Operat
 | Learning nothing across goals | Write retrospective findings to Learning Log |
 | Posting or spending too early | Draft and stage first, ask before external action |
 | Confusing `/strategy` with `/goal` | Keep command boundaries separate |
+| Treating cost_multiplier as a fixed bucket | Use the budget-aware formula; a high-cost task in a depleted budget must penalize heavily |
+| Forcing plan completion past a stall cycle | If 3 cycles produce no new evidence and the same task recycles, pause and review before continuing |
 
 ## Acceptance Checklist
 
@@ -953,6 +977,19 @@ The v2 implementation is complete when:
 - [ ] `cost_per_outcome` and `plan_consistency` added as required metric types
 - [ ] `plan_consistency` < 40% triggers oscillation warning
 
+**v3.1 additions:**
+- [ ] PCE EVALUATOR uses two-axis output: `validation_priority` (p_false × cost_weight) and impact-scaled health thresholds (critical ≥ 0.20, high ≥ 0.30, medium ≥ 0.50, low ≥ 0.70)
+- [ ] Budget-aware cost multiplier formula replaces static 1.0/1.5/2.0 buckets
+- [ ] Stall kill trigger defined: 3 cycles no new evidence + recycled top task → pause
+- [ ] Strategic Review Protocol has step 0: replan from canonical persistent-store state
+- [ ] "Abandon this goal" is an explicit option in Strategic Review when math no longer closes
+- [ ] Subagent dispatch contract includes active exit triggers; self-exit permission granted
+- [ ] Layer 2 reliability guard: tasks > 4 hours decomposed into checkpointed subgoals
+- [ ] Assumption Registry includes `uncertainty_source` field ("specification | model_world")
+- [ ] Learning Log retrieval runs before Strategic Review and before every dispatch cycle (not only at Layer 0)
+- [ ] Layer 3 dispatch uses knapsack selection (maximize RICE subject to weekly hour cap)
+- [ ] Worked example at references/worked-example.md traces a full goal end-to-end
+
 ## Success Criteria
 
 Strategy is working when:
@@ -966,3 +1003,15 @@ Strategy is working when:
 - metrics improve or Strategy recommends a real pivot/kill/reroute
 - costs stay within budget
 - the system survives downtime without losing trust
+
+## Worked Example
+
+`references/worked-example.md` traces a single goal end-to-end — from raw input through Layer 0 (complexity gate, discovery, stress-test), Layer 1 (goal init, assumptions, pre-mortem), Layer 2 (paths, milestones, tasks), and Layer 3 (RICE scoring, dispatch packet), plus one PCE loop cycle using the v3.1 two-axis method.
+
+Key outcomes the example demonstrates:
+- **Complexity gate** scores the input (5 points → full path)
+- **Vehicle stress-test** rejects paid-ads-driven SaaS on math: CAC must be funded upfront but available capital is ~$0
+- **Productized service** is selected: 5 clients at $1K/month is reachable within 6 months
+- **PCE loop**: after 20 outreach messages yield 0 replies, assumption A2 (≥3% reply-to-call rate) lands at p_false = 0.25, validation_priority = 0.75 — in the flag band for a high-impact assumption → status set to `at_risk`
+
+Read that file before implementing this skill in a new context.
